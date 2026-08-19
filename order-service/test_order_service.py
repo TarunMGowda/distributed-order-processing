@@ -1,6 +1,6 @@
-from uuid import uuid4
 
-from app.models import Order, OrderCreate
+
+from app.models import OrderCreate
 from app.order_service import create_order, get_order
 
 
