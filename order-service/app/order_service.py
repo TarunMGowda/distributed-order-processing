@@ -1,31 +1,32 @@
 from uuid import uuid4
 
-from app.models import OrderCreate
+from sqlalchemy.orm import Session
+
+from app.models import Order, OrderCreate
 
 
-orders = {}
-
-
-def create_order(order: OrderCreate):
+def create_order(db: Session, order: OrderCreate):
     order_id = str(uuid4())
 
-    new_order = {
-        "order_id": order_id,
-        "customer_id": order.customer_id,
-        "product_id": order.product_id,
-        "quantity": order.quantity,
-        "amount": order.amount,
-        "status": "CREATED",
-    }
+    new_order = Order(
+        order_id=order_id,
+        customer_id=order.customer_id,
+        product_id=order.product_id,
+        quantity=order.quantity,
+        amount=order.amount,
+        status="CREATED",
+    )
 
-    orders[order_id] = new_order
+    db.add(new_order)
+    db.commit()
+    db.refresh(new_order)
 
     return new_order
 
 
-def get_order(order_id: str):
-    return orders.get(order_id)
+def get_order(db: Session, order_id: str):
+    return db.get(Order, order_id)
 
 
-def get_all_orders():
-    return list(orders.values())
+def get_all_orders(db: Session):
+    return db.query(Order).all()
