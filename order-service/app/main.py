@@ -2,8 +2,9 @@ from fastapi import Depends, FastAPI, HTTPException
 from sqlalchemy.orm import Session
 
 from app.database import Base, engine, get_db
-from app.models import Order, OrderCreate
+from app.models import OrderCreate
 from app.order_service import create_order, get_all_orders, get_order
+from app.kafka_producer import publish_order_created
 
 
 Base.metadata.create_all(bind=engine)
@@ -26,7 +27,11 @@ def create_new_order(
     order: OrderCreate,
     db: Session = Depends(get_db),
 ):
-    return create_order(db, order)
+    new_order = create_order(db, order)
+
+    publish_order_created(new_order)
+
+    return new_order
 
 
 @app.get("/orders/{order_id}")

@@ -11,5 +11,14 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
+  kafka:
+    image: apache/kafka:4.3.1
+    container_name: order-kafka
+    ports:
+      - "9092:9092"
+    volumes:
+      - kafka_data:/tmp/kafka-logs
+
 volumes:
   postgres_data:
+  kafka_data:
