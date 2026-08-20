@@ -1,5 +1,6 @@
 from uuid import uuid4
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.models import Payment
@@ -31,7 +32,16 @@ def process_payment(
     )
 
     db.add(payment)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        return (
+            db.query(Payment)
+            .filter(Payment.order_id == order_id)
+            .one()
+        )
+
     db.refresh(payment)
 
     return payment

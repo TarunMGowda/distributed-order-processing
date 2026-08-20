@@ -56,3 +56,9 @@ The system consists of independently deployable microservices that communicate a
 
 🚧 Under development
 
+## Testing
+
+Run the complete test suite:
+
+```cmd
+pytest -v

@@ -1,5 +1,6 @@
 from uuid import uuid4
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.models import Notification
@@ -36,7 +37,16 @@ def send_notification(
     )
 
     db.add(notification)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        return (
+            db.query(Notification)
+            .filter(Notification.order_id == order_id)
+            .one()
+        )
+
     db.refresh(notification)
 
     return notification

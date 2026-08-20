@@ -1,5 +1,6 @@
 from uuid import uuid4
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.models import InventoryReservation
@@ -35,7 +36,18 @@ def reserve_inventory(
     )
 
     db.add(reservation)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        return (
+            db.query(InventoryReservation)
+            .filter(
+                InventoryReservation.order_id == order_id
+            )
+            .one()
+        )
+
     db.refresh(reservation)
 
     return reservation
