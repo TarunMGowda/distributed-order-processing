@@ -476,7 +476,7 @@ PostgreSQL and Kafka run as Docker containers.
 Clone the repository:
 
 ```cmd
-git clone https://github.com/YOUR_USERNAME/distributed-order-processing.git
+git clone https://github.com/TarunMGowda/distributed-order-processing.git
 cd distributed-order-processing
 ```
 
