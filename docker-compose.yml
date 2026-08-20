@@ -99,10 +99,13 @@ services:
       dockerfile: Dockerfile.txt
     container_name: notification-service
     environment:
+      DATABASE_URL: postgresql+psycopg://orders_user:orders_password@postgres:5432/orders_db
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
     ports:
       - "8003:8003"
     depends_on:
+      postgres:
+        condition: service_healthy
       kafka:
         condition: service_healthy
 

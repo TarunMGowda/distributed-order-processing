@@ -2,7 +2,11 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from app.database import Base, engine
 from app.kafka_consumer import start_consumer
+
+
+Base.metadata.create_all(bind=engine)
 
 
 @asynccontextmanager

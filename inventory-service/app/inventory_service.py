@@ -11,6 +11,21 @@ def reserve_inventory(
     product_id: int,
     quantity: int,
 ):
+    existing_reservation = (
+        db.query(InventoryReservation)
+        .filter(
+            InventoryReservation.order_id == order_id
+        )
+        .first()
+    )
+
+    if existing_reservation is not None:
+        print(
+            f"Inventory already reserved for order "
+            f"{order_id}"
+        )
+        return existing_reservation
+
     reservation = InventoryReservation(
         reservation_id=str(uuid4()),
         order_id=order_id,

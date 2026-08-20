@@ -3,7 +3,10 @@ import os
 import threading
 import time
 
-from confluent_kafka import Consumer
+from confluent_kafka import Consumer, TopicPartition
+
+from app.database import SessionLocal
+from app.notification_service import send_notification
 
 
 KAFKA_BOOTSTRAP_SERVERS = os.getenv(
@@ -13,6 +16,7 @@ KAFKA_BOOTSTRAP_SERVERS = os.getenv(
 
 TOPIC = "order-events"
 GROUP_ID = "notification-service-group"
+MAX_RETRIES = 3
 
 
 consumer = Consumer(
@@ -25,12 +29,42 @@ consumer = Consumer(
 )
 
 
-def send_notification(event):
-    print(
-        f"Notification sent for order "
-        f"{event['order_id']} "
-        f"to customer {event['customer_id']}"
+def process_message(message):
+    event = json.loads(
+        message.value().decode("utf-8")
     )
+
+    for attempt in range(1, MAX_RETRIES + 1):
+        try:
+            print(
+                f"Processing notification for "
+                f"order {event['order_id']} "
+                f"(attempt {attempt}/{MAX_RETRIES})"
+            )
+
+            db = SessionLocal()
+
+            try:
+                send_notification(
+                    db,
+                    event["order_id"],
+                    event["customer_id"],
+                )
+            finally:
+                db.close()
+
+            return True
+
+        except Exception as exc:
+            print(
+                f"Notification attempt {attempt} failed: "
+                f"{exc}"
+            )
+
+            if attempt < MAX_RETRIES:
+                time.sleep(attempt * 2)
+
+    return False
 
 
 def consume_orders():
@@ -46,23 +80,26 @@ def consume_orders():
             print(f"Kafka error: {message.error()}")
             continue
 
-        try:
-            event = json.loads(
-                message.value().decode("utf-8")
-            )
+        success = process_message(message)
 
-            print(
-                f"Received OrderCreated event: "
-                f"{event['order_id']}"
-            )
-
-            send_notification(event)
-
+        if success:
             consumer.commit(message)
+            continue
 
-        except Exception as exc:
-            print(f"Failed to process event: {exc}")
-            time.sleep(2)
+        print(
+            "Notification processing failed after retries. "
+            "Retrying the same Kafka message."
+        )
+
+        consumer.seek(
+            TopicPartition(
+                message.topic(),
+                message.partition(),
+                message.offset(),
+            )
+        )
+
+        time.sleep(2)
 
 
 def start_consumer():

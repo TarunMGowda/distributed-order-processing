@@ -1,13 +1,13 @@
-from sqlalchemy import Integer, String
+from sqlalchemy import String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
 
 
-class InventoryReservation(Base):
-    __tablename__ = "inventory_reservations"
+class Notification(Base):
+    __tablename__ = "notifications"
 
-    reservation_id: Mapped[str] = mapped_column(
+    notification_id: Mapped[str] = mapped_column(
         String,
         primary_key=True,
     )
@@ -18,13 +18,7 @@ class InventoryReservation(Base):
         nullable=False,
     )
 
-    product_id: Mapped[int] = mapped_column(
-        Integer,
-        nullable=False,
-    )
-
-    quantity: Mapped[int] = mapped_column(
-        Integer,
+    customer_id: Mapped[int] = mapped_column(
         nullable=False,
     )
 

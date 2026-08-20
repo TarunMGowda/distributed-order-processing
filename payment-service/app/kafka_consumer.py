@@ -3,7 +3,7 @@ import os
 import threading
 import time
 
-from confluent_kafka import Consumer
+from confluent_kafka import Consumer, TopicPartition
 
 from app.database import SessionLocal
 from app.payment_service import process_payment
@@ -16,6 +16,7 @@ KAFKA_BOOTSTRAP_SERVERS = os.getenv(
 
 TOPIC = "order-events"
 GROUP_ID = "payment-service-group"
+MAX_RETRIES = 3
 
 
 consumer = Consumer(
@@ -26,6 +27,49 @@ consumer = Consumer(
         "enable.auto.commit": False,
     }
 )
+
+
+def process_message(message):
+    event = json.loads(
+        message.value().decode("utf-8")
+    )
+
+    for attempt in range(1, MAX_RETRIES + 1):
+        try:
+            print(
+                f"Processing payment for "
+                f"order {event['order_id']} "
+                f"(attempt {attempt}/{MAX_RETRIES})"
+            )
+
+            db = SessionLocal()
+
+            try:
+                payment = process_payment(
+                    db,
+                    event["order_id"],
+                    event["amount"],
+                )
+            finally:
+                db.close()
+
+            print(
+                f"Payment processed: "
+                f"{payment.payment_id}"
+            )
+
+            return True
+
+        except Exception as exc:
+            print(
+                f"Payment attempt {attempt} failed: "
+                f"{exc}"
+            )
+
+            if attempt < MAX_RETRIES:
+                time.sleep(attempt * 2)
+
+    return False
 
 
 def consume_orders():
@@ -41,36 +85,26 @@ def consume_orders():
             print(f"Kafka error: {message.error()}")
             continue
 
-        try:
-            event = json.loads(message.value().decode("utf-8"))
+        success = process_message(message)
 
-            print(
-                f"Received OrderCreated event: "
-                f"{event['order_id']}"
+        if success:
+            consumer.commit(message)
+            continue
+
+        print(
+            "Payment processing failed after retries. "
+            "Retrying the same Kafka message."
+        )
+
+        consumer.seek(
+            TopicPartition(
+                message.topic(),
+                message.partition(),
+                message.offset(),
             )
+        )
 
-            db = SessionLocal()
-
-            try:
-                payment = process_payment(
-                    db,
-                    event["order_id"],
-                    event["amount"],
-                )
-
-                print(
-                    f"Payment processed: "
-                    f"{payment.payment_id}"
-                )
-
-                consumer.commit(message)
-
-            finally:
-                db.close()
-
-        except Exception as exc:
-            print(f"Failed to process event: {exc}")
-            time.sleep(2)
+        time.sleep(2)
 
 
 def start_consumer():

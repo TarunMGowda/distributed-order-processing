@@ -10,6 +10,19 @@ def process_payment(
     order_id: str,
     amount: float,
 ):
+    existing_payment = (
+        db.query(Payment)
+        .filter(Payment.order_id == order_id)
+        .first()
+    )
+
+    if existing_payment is not None:
+        print(
+            f"Payment already processed for order "
+            f"{order_id}"
+        )
+        return existing_payment
+
     payment = Payment(
         payment_id=str(uuid4()),
         order_id=order_id,
